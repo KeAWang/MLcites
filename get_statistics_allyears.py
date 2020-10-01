@@ -5,6 +5,7 @@ from urllib.request import urlopen
 import pandas as pd
 import pickle
 import argparse
+import requests
 
 # global definition of Google Scholar's author page, sorted by date
 _AUTHPAGE = '/citations?hl=en&user={0}&view_op=list_works&sortby=pubdate&cstart=0&pagesize=200'
@@ -31,8 +32,8 @@ def get_name_and_authors(html):
 def author_paper_citations(df, adata, pname, i):
     # helper function to try and get citations for one paper
     updated = False
-    url = _AUTHPAGE.format(scholarly.requests.utils.quote(adata.id))
-    soup = scholarly._get_soup(scholarly._HOST+url)
+    url = _AUTHPAGE.format(requests.utils.quote(adata.id))
+    soup = scholarly._navigator.Navigator()._get_soup(url)
     
     clumped_tags = soup.find_all('tr', attrs={"class":"gsc_a_tr"})
     for t in clumped_tags:
@@ -65,7 +66,7 @@ def get_citations(df):
     
         for author in authors:
             try:
-                adata = next(scholarly.search_author(author))
+                adata = next(scholarly.scholarly.search_author(author))
                 print("Found author data", adata.name)
                 df, updated = author_paper_citations(df, adata, pname, i)
             except StopIteration:
