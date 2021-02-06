@@ -6,6 +6,8 @@ from pathlib import Path
 from argparse import ArgumentParser
 import pandas as pd
 import itertools
+import logging
+from copy import deepcopy
 
 
 def year_type(string):
@@ -52,11 +54,15 @@ def get_papers(dblp_html):
     cites = cites[1:]  # skip the first entry which is the proceeding itself
     papers = []
     for cite in cites:
-        authors_and_titles = cite.find_all(itemprop="name")
+        authors_and_title = cite.find_all(itemprop="name")
         # title is the last sibling. rest are authors
-        author_tags = authors_and_titles[:-1]
+        author_tags = authors_and_title[:-1]
+        author_tags = [a for a in authors_and_title if "title" in a.attrs]
         authors = [a.contents[0] for a in author_tags]
-        title = authors_and_titles[-1]
+        title = authors_and_title[-1]
+        title = [t for t in authors_and_title if "class" in t.attrs]
+        assert len(title) == 1
+        title = title[0]
         # sometimes titles have additional html tags within them, like italicization
         # so we must expand them and then join
 
@@ -72,13 +78,15 @@ def get_papers(dblp_html):
     return papers
 
 
-def get_paper_data(papers, fields=("abstract", "num_citations")):
-    papers = dict(papers)  # make a copy
+def get_paper_data(papers, bib_fields=("abstract",)):
     for paper in papers:
-        title = papers["title"]
+        title = paper["title"]
+        logging.info(f"Querying paper: {title}")
+        breakpoint()
         gs_result = scholarly.search_single_pub(title)
-        for field in fields:
-            papers[field] = gs_result[field]
+        paper["num_citations"] = gs_result["num_citations"]
+        for field in bib_fields:
+            paper[field] = gs_result["bib"][field]
     return papers
 
 
@@ -123,5 +131,5 @@ if __name__ == "__main__":
             df_paper_data = pd.DataFrame(paper_data)
             df_paper_data.to_csv(data_dir / f"paper_data-{conference}-{year}.csv")
 
-    with ThreadPoolExecutor(max_workers=10) as pool:
+    with ThreadPoolExecutor(max_workers=5) as pool:
         elevations = list(pool.map(get, year_confs))
