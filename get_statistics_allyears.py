@@ -100,7 +100,7 @@ if __name__ == "__main__":
     # parse command line args
     """
     Example command:
-    python get_statistics_allyears.py --year 2020 --conference NeurIPS
+    python get_statistics_allyears.py --year 2019 2020 --conference NeurIPS ICML
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--year", help="Conference year", default="2018", nargs="+")
