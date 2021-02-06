@@ -1,4 +1,3 @@
-import numpy as np
 import scholarly
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
@@ -21,7 +20,7 @@ def get_html(url):
 def get_name_and_authors(html):
     # takes in html, parses with beautiful soup
     # adds paper name/author names to dataframe
-    output = pd.DataFrame(columns=["name", "authors", "citations", "affiliations"])
+    output = pd.DataFrame(columns=["name", "authors", "citations", "affiliation"])
 
     soup = BeautifulSoup(html, "html.parser")
     clumped_tags = soup.find_all("div", attrs={"class": "maincard narrower Poster"})
@@ -37,7 +36,7 @@ def get_name_and_authors(html):
 def author_paper_citations(df, adata, pname, i):
     # helper function to try and get citations for one paper
     updated = False
-    url = _AUTHPAGE.format(requests.utils.quote(adata.id))
+    url = _AUTHPAGE.format(requests.utils.quote(adata["scholar_id"]))
     soup = scholarly._navigator.Navigator()._get_soup(url)
 
     clumped_tags = soup.find_all("tr", attrs={"class": "gsc_a_tr"})
@@ -57,11 +56,11 @@ def author_paper_citations(df, adata, pname, i):
                 else:
                     cites = int(cites)
                 df["citations"][i] = cites
-                df["affiliations"][i] = adata.affiliation
+                df["affiliation"][i] = adata["affiliation"]
                 updated = True
             except AttributeError:
                 if t.find("a", attrs={"class": "gsc_a_ac gs_ibl"}) == None:
-                    print("couldn't find citations for, author", adata.name)
+                    print("couldn't find citations for, author", adata["name"])
                     print("source paper name, found name", pname, cname)
             break
     return df, updated
@@ -78,13 +77,15 @@ def get_citations(df):
         for author in authors:
             try:
                 adata = next(scholarly.scholarly.search_author(author))
-                print("Found author data", adata.name)
+                print("Found author data", adata["name"])
                 df, updated = author_paper_citations(df, adata, pname, i)
             except StopIteration:
                 continue
             if updated:
                 print(
-                    "Successfully updated df for paper, with author", pname, adata.name
+                    "Successfully updated df for paper, with author",
+                    pname,
+                    adata["name"],
                 )
                 break
         print("")
@@ -94,6 +95,10 @@ def get_citations(df):
 if __name__ == "__main__":
 
     # parse command line args
+    """
+    Example command:
+    python get_statistics_allyears.py --year 2020 --conference NeurIPS
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--year", help="Conference year", default="2018")
     parser.add_argument(
