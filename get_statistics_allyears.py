@@ -1,10 +1,13 @@
 import scholarly
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import pickle
 import argparse
 import requests
+import itertools
+
 
 # global definition of Google Scholar's author page, sorted by date
 _AUTHPAGE = (
@@ -100,20 +103,27 @@ if __name__ == "__main__":
     python get_statistics_allyears.py --year 2020 --conference NeurIPS
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--year", help="Conference year", default="2018")
+    parser.add_argument("--year", help="Conference year", default="2018", nargs="+")
     parser.add_argument(
-        "--conference", help="Either ICML or NeurIPS", default="NeurIPS"
+        "--conference", help="Either ICML or NeurIPS", default="NeurIPS", nargs="+"
     )
     args = parser.parse_args()
 
-    if args.conference == "NeurIPS":
-        _URL = "https://nips.cc/Conferences/%s/Schedule" % str(args.year)
-    if args.conference == "ICML":
-        _URL = "https://icml.cc/Conferences/%s/Schedule" % str(args.year)
+    year_confs = itertools.product(args.year, args.conference)
 
-    html = get_html(_URL)
-    df = get_name_and_authors(html)
-    df = get_citations(df)
+    def get(year_conference):
+        year, conference = year_conference
+        if conference == "NeurIPS":
+            _URL = "https://nips.cc/Conferences/%s/Schedule" % str(year)
+        if conference == "ICML":
+            _URL = "https://icml.cc/Conferences/%s/Schedule" % str(year)
 
-    with open("./results_%s_%s.p" % (args.conference, args.year), "wb") as f:
-        pickle.dump(df, f)
+        html = get_html(_URL)
+        df = get_name_and_authors(html)
+        df = get_citations(df)
+
+        with open("./results_%s_%s.p" % (conference, year), "wb") as f:
+            pickle.dump(df, f)
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        elevations = list(pool.map(get, year_confs))
